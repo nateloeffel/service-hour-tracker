@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clubsCreated  Club[]           @relation("ClubCreator")
+  memberships   ClubMembership[]
+  serviceHours  ServiceHour[]    @relation("StudentHours")
+  reviewedHours ServiceHour[]    @relation("ReviewerHours")
+  opportunities Opportunity[]
+
+  @@map("users")
+}
+
+enum Role {
+  CREATOR
+  ADMIN
+  STUDENT
+}
+
+enum HourStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Club {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  creatorId   String   @map("creator_id")
+  inviteToken String   @unique @map("invite_token")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  creator       User             @relation("ClubCreator", fields: [creatorId], references: [id])
+  memberships   ClubMembership[]
+  serviceHours  ServiceHour[]
+  opportunities Opportunity[]
+
+  @@map("clubs")
+}
+
+model ClubMembership {
+  id       String   @id @default(uuid())
+  clubId   String   @map("club_id")
+  userId   String   @map("user_id")
+  role     Role     @default(STUDENT)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+  @@map("club_memberships")
+}
+
+model ServiceHour {
+  id           String     @id @default(uuid())
+  clubId       String     @map("club_id")
+  studentId    String     @map("student_id")
+  activityName String     @map("activity_name")
+  date         DateTime   @db.Date
+  hours        Decimal    @db.Decimal(5, 2)
+  description  String?
+  status       HourStatus @default(PENDING)
+  rejectReason String?    @map("reject_reason")
+  reviewedBy   String?    @map("reviewed_by")
+  reviewedAt   DateTime?  @map("reviewed_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  club     Club  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  student  User  @relation("StudentHours", fields: [studentId], references: [id])
+  reviewer User? @relation("ReviewerHours", fields: [reviewedBy], references: [id])
+
+  @@index([clubId, status])
+  @@index([studentId])
+  @@map("service_hours")
+}
+
+model Opportunity {
+  id          String   @id @default(uuid())
+  clubId      String   @map("club_id")
+  name        String
+  description String
+  date        DateTime @db.Date
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  club    Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@index([clubId])
+  @@map("opportunities")
+}
