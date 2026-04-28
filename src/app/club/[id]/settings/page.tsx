@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { updateClub, refreshInviteLink, archiveClub, deleteClub } from "@/lib/actions";
+import { CopyInviteLink } from "@/components/copy-button";
 
 export default async function ClubSettingsPage({
   params,
@@ -69,12 +70,8 @@ export default async function ClubSettingsPage({
         <p className="mt-1 text-sm text-gray-500">
           Share this link to let students join your club.
         </p>
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            readOnly
-            value={inviteUrl}
-            className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600"
-          />
+        <div className="mt-3">
+          <CopyInviteLink url={inviteUrl} />
         </div>
         <form
           action={async () => {

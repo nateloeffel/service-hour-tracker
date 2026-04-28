@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { CopyInviteLink } from "@/components/copy-button";
 
 export default async function AdminDashboard({
   params,
@@ -8,7 +9,8 @@ export default async function AdminDashboard({
 }) {
   const { id: clubId } = await params;
 
-  const [totalApproved, pendingCount, memberCount, monthlyHours] = await Promise.all([
+  const [club, totalApproved, pendingCount, memberCount, monthlyHours] = await Promise.all([
+    prisma.club.findUnique({ where: { id: clubId } }),
     prisma.serviceHour.aggregate({
       where: { clubId, status: "APPROVED" },
       _sum: { hours: true },
@@ -29,6 +31,8 @@ export default async function AdminDashboard({
       ORDER BY month ASC
     `,
   ]);
+
+  const inviteUrl = club ? `${process.env.NEXTAUTH_URL}/join/${club.inviteToken}` : "";
 
   const totalHours = Number(totalApproved._sum.hours || 0);
   const maxMonthly = Math.max(...monthlyHours.map((m) => m.total), 1);
@@ -86,6 +90,19 @@ export default async function AdminDashboard({
           </div>
         )}
       </div>
+
+      {/* Invite Link */}
+      {club && (
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900">Invite Link</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Share this link to let new members join your club.
+          </p>
+          <div className="mt-3">
+            <CopyInviteLink url={inviteUrl} />
+          </div>
+        </div>
+      )}
 
       {/* Quick Links */}
       <div className="mt-6 flex flex-wrap gap-3">
