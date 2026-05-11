@@ -266,7 +266,15 @@ export async function createOpportunity(clubId: string, formData: FormData) {
 }
 
 export async function updateOpportunity(clubId: string, oppId: string, formData: FormData) {
-  await requireRole(clubId, "ADMIN");
+  const { user } = await requireRole(clubId, "ADMIN");
+
+  // Only the user who created the opportunity may edit it.
+  const opp = await prisma.opportunity.findUnique({ where: { id: oppId } });
+  if (!opp || opp.clubId !== clubId) throw new Error("Opportunity not found");
+  if (opp.createdBy !== user.id) {
+    throw new Error("Only the user who posted this opportunity can edit it");
+  }
+
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
   const date = formData.get("date") as string;
@@ -293,4 +301,75 @@ export async function deleteOpportunity(clubId: string, oppId: string) {
   await prisma.opportunity.delete({ where: { id: oppId, clubId } });
   revalidatePath(`/club/${clubId}/admin/opportunities`);
   revalidatePath(`/club/${clubId}/opportunities`);
+}
+
+// ─── Flags ───
+
+const FLAG_COLORS = ["blue", "green", "yellow", "red", "purple", "gray"] as const;
+
+export async function createFlag(clubId: string, formData: FormData) {
+  await requireRole(clubId, "ADMIN");
+  const name = (formData.get("name") as string)?.trim();
+  const color = (formData.get("color") as string) || "blue";
+
+  if (!name) throw new Error("Flag name is required");
+  if (name.length > 30) throw new Error("Flag name must be 30 characters or fewer");
+  if (!FLAG_COLORS.includes(color as (typeof FLAG_COLORS)[number])) {
+    throw new Error("Invalid color");
+  }
+
+  try {
+    await prisma.flag.create({
+      data: { clubId, name, color },
+    });
+  } catch {
+    throw new Error("A flag with that name already exists");
+  }
+
+  revalidatePath(`/club/${clubId}/admin/students`);
+}
+
+export async function deleteFlag(clubId: string, flagId: string) {
+  await requireRole(clubId, "ADMIN");
+  await prisma.flag.delete({ where: { id: flagId, clubId } });
+  revalidatePath(`/club/${clubId}/admin/students`);
+}
+
+export async function assignFlag(
+  clubId: string,
+  membershipId: string,
+  flagId: string,
+) {
+  await requireRole(clubId, "ADMIN");
+
+  // Validate that both belong to this club to prevent cross-club tampering.
+  const [membership, flag] = await Promise.all([
+    prisma.clubMembership.findUnique({ where: { id: membershipId } }),
+    prisma.flag.findUnique({ where: { id: flagId } }),
+  ]);
+  if (!membership || membership.clubId !== clubId) {
+    throw new Error("Membership not found");
+  }
+  if (!flag || flag.clubId !== clubId) {
+    throw new Error("Flag not found");
+  }
+
+  await prisma.membershipFlag.upsert({
+    where: { membershipId_flagId: { membershipId, flagId } },
+    update: {},
+    create: { membershipId, flagId },
+  });
+  revalidatePath(`/club/${clubId}/admin/students`);
+}
+
+export async function unassignFlag(
+  clubId: string,
+  membershipId: string,
+  flagId: string,
+) {
+  await requireRole(clubId, "ADMIN");
+  await prisma.membershipFlag.deleteMany({
+    where: { membershipId, flagId, membership: { clubId } },
+  });
+  revalidatePath(`/club/${clubId}/admin/students`);
 }

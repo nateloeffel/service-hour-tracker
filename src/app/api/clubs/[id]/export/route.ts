@@ -52,10 +52,20 @@ export async function GET(
       },
     });
   } else {
-    // Export all students with totals
+    // Optional ?flag=<flagId> to scope export to members with a specific flag
+    const flagFilter = request.nextUrl.searchParams.get("flag");
+
     const members = await prisma.clubMembership.findMany({
-      where: { clubId },
-      include: { user: true },
+      where: {
+        clubId,
+        ...(flagFilter
+          ? { flags: { some: { flagId: flagFilter } } }
+          : {}),
+      },
+      include: {
+        user: true,
+        flags: { include: { flag: true } },
+      },
     });
 
     const hoursByStudent = await prisma.serviceHour.groupBy({
@@ -68,23 +78,32 @@ export async function GET(
     );
 
     const csv = [
-      "Name,Email,Role,Approved Hours",
+      "Name,Email,Role,Flags,Approved Hours",
       ...members.map((m) =>
         [
           `"${m.user.name}"`,
           m.user.email,
           m.role,
+          `"${m.flags.map((mf) => mf.flag.name).join("; ")}"`,
           hoursMap[m.userId] || 0,
         ].join(",")
       ),
     ].join("\n");
 
-    const club = await prisma.club.findUnique({ where: { id: clubId } });
+    const [club, flag] = await Promise.all([
+      prisma.club.findUnique({ where: { id: clubId } }),
+      flagFilter
+        ? prisma.flag.findUnique({ where: { id: flagFilter } })
+        : Promise.resolve(null),
+    ]);
+
+    const baseName = (club?.name || "club").replace(/"/g, "");
+    const suffix = flag ? `_${flag.name.replace(/[^a-z0-9]+/gi, "_")}` : "";
 
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="${(club?.name || "club").replace(/"/g, "")}_roster.csv"`,
+        "Content-Disposition": `attachment; filename="${baseName}${suffix}_roster.csv"`,
       },
     });
   }

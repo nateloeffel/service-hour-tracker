@@ -1,7 +1,12 @@
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDate } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
-import { createOpportunity, deleteOpportunity } from "@/lib/actions";
+import {
+  createOpportunity,
+  deleteOpportunity,
+  updateOpportunity,
+} from "@/lib/actions";
+import { OpportunityCard } from "@/components/opportunity-card";
 
 export default async function ManageOpportunitiesPage({
   params,
@@ -9,6 +14,8 @@ export default async function ManageOpportunitiesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: clubId } = await params;
+  const session = await auth();
+  const currentUserId = session?.user?.id;
 
   const opportunities = await prisma.opportunity.findMany({
     where: { clubId },
@@ -23,12 +30,25 @@ export default async function ManageOpportunitiesPage({
 
   const createOpp = createOpportunity.bind(null, clubId);
 
+  function serialize(o: (typeof opportunities)[number]) {
+    return {
+      id: o.id,
+      name: o.name,
+      description: o.description,
+      date: o.date.toISOString(),
+      createdBy: o.createdBy,
+    };
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold text-gray-900">Manage Opportunities</h1>
 
       {/* Create Form */}
-      <form action={createOpp} className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
+      <form
+        action={createOpp}
+        className="mt-6 rounded-lg border border-gray-200 bg-white p-5"
+      >
         <h2 className="font-semibold text-gray-900">Create Opportunity</h2>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div className="col-span-2 sm:col-span-1">
@@ -72,26 +92,15 @@ export default async function ManageOpportunitiesPage({
           <h2 className="font-semibold text-gray-900">Upcoming</h2>
           <div className="mt-3 space-y-3">
             {upcoming.map((opp) => (
-              <div
+              <OpportunityCard
                 key={opp.id}
-                className="flex items-start justify-between rounded-lg border border-gray-200 bg-white p-4"
-              >
-                <div>
-                  <h3 className="font-medium text-gray-900">{opp.name}</h3>
-                  <p className="text-sm text-gray-500">{opp.description}</p>
-                  <p className="mt-1 text-xs text-gray-400">{formatDate(opp.date)}</p>
-                </div>
-                <form
-                  action={async () => {
-                    "use server";
-                    await deleteOpportunity(clubId, opp.id);
-                  }}
-                >
-                  <button className="text-xs font-medium text-red-600 hover:text-red-800">
-                    Delete
-                  </button>
-                </form>
-              </div>
+                opp={serialize(opp)}
+                clubId={clubId}
+                canEdit={opp.createdBy === currentUserId}
+                past={false}
+                onUpdate={updateOpportunity}
+                onDelete={deleteOpportunity}
+              />
             ))}
           </div>
         </div>
@@ -103,26 +112,15 @@ export default async function ManageOpportunitiesPage({
           <h2 className="font-semibold text-gray-500">Archived</h2>
           <div className="mt-3 space-y-3">
             {past.map((opp) => (
-              <div
+              <OpportunityCard
                 key={opp.id}
-                className="flex items-start justify-between rounded-lg border border-gray-100 bg-gray-50 p-4"
-              >
-                <div>
-                  <h3 className="font-medium text-gray-600">{opp.name}</h3>
-                  <p className="text-sm text-gray-400">{opp.description}</p>
-                  <p className="mt-1 text-xs text-gray-400">{formatDate(opp.date)}</p>
-                </div>
-                <form
-                  action={async () => {
-                    "use server";
-                    await deleteOpportunity(clubId, opp.id);
-                  }}
-                >
-                  <button className="text-xs font-medium text-red-600 hover:text-red-800">
-                    Delete
-                  </button>
-                </form>
-              </div>
+                opp={serialize(opp)}
+                clubId={clubId}
+                canEdit={opp.createdBy === currentUserId}
+                past={true}
+                onUpdate={updateOpportunity}
+                onDelete={deleteOpportunity}
+              />
             ))}
           </div>
         </div>
