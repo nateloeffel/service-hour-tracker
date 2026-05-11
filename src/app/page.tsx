@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,11 +35,20 @@ export default async function HomePage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Clubs</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Welcome back, {session.user.name}
-          </p>
+        <div className="flex items-center gap-3">
+          {session.user.image && (
+            <img
+              src={session.user.image}
+              alt=""
+              className="h-10 w-10 rounded-full"
+            />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">My Clubs</h1>
+            <p className="mt-0.5 text-sm text-gray-500">
+              Welcome back, {session.user.name}
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
           <Link
@@ -55,6 +64,19 @@ export default async function HomePage() {
           >
             Create Club
           </Link>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <button
+              type="submit"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Sign Out
+            </button>
+          </form>
         </div>
       </div>
 
