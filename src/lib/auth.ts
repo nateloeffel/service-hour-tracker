@@ -16,8 +16,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user }) {
       const email = user.email;
-      if (!email || !email.endsWith("@gmail.com")) {
-      // if (!email || !email.endsWith("@fcsweb.org")) {
+      if (!email || !email.endsWith("@fcsweb.org")) {
         return false;
       }
       // Upsert user record
