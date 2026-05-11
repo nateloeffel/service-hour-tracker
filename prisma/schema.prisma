@@ -49,6 +49,7 @@ model Club {
   memberships   ClubMembership[]
   serviceHours  ServiceHour[]
   opportunities Opportunity[]
+  flags         Flag[]
 
   @@map("clubs")
 }
@@ -60,11 +61,39 @@ model ClubMembership {
   role     Role     @default(STUDENT)
   joinedAt DateTime @default(now()) @map("joined_at")
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club  Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flags MembershipFlag[]
 
   @@unique([clubId, userId])
   @@map("club_memberships")
+}
+
+model Flag {
+  id        String   @id @default(uuid())
+  clubId    String   @map("club_id")
+  name      String
+  color     String   @default("blue")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  club        Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberships MembershipFlag[]
+
+  @@unique([clubId, name])
+  @@index([clubId])
+  @@map("flags")
+}
+
+model MembershipFlag {
+  membershipId String   @map("membership_id")
+  flagId       String   @map("flag_id")
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+
+  membership ClubMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  flag       Flag           @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, flagId])
+  @@map("membership_flags")
 }
 
 model ServiceHour {

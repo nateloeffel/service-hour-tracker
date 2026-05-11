@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/ui/badge";
+import { FlagPill } from "@/components/flag-pill";
 import { formatDate } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +16,7 @@ export default async function StudentDetailPage({
     prisma.user.findUnique({ where: { id: uid } }),
     prisma.clubMembership.findUnique({
       where: { clubId_userId: { clubId, userId: uid } },
+      include: { flags: { include: { flag: true } } },
     }),
     prisma.serviceHour.findMany({
       where: { clubId, studentId: uid },
@@ -40,6 +42,13 @@ export default async function StudentDetailPage({
           </Link>
           <h1 className="mt-1 text-2xl font-bold text-gray-900">{user.name}</h1>
           <p className="text-sm text-gray-500">{user.email}</p>
+          {membership.flags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {membership.flags.map((mf) => (
+                <FlagPill key={mf.flag.id} name={mf.flag.name} color={mf.flag.color} />
+              ))}
+            </div>
+          )}
         </div>
         <div className="sm:text-right">
           <p className="text-sm text-gray-500">Approved Hours</p>
